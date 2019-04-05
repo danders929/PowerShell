@@ -1,6 +1,5 @@
-﻿function Show-Menu
-{
-
+﻿function Show-Menu{
+$Credential = get-credential
 ######################Main Menu####################
 
         [string]$Title = 'Main Menu'
@@ -8,12 +7,13 @@
     Clear-Host
     Write-Host "================ $Title ================"
     
-    Write-Host "1: Notify When Server is Online."
+    Write-Host "1: Notify When Server is Online"
     Write-Host "2: Remotely Kill Session"
+    Write-Host "3: Server info"
     Write-Host "Q: Press 'Q' to quit."
     }
 
-    do
+do
     {
      Show-Menu
      $selection = Read-Host "`nPlease make a selection"
@@ -23,7 +23,7 @@
 ######################Online Notify###################
 
         '1' 
-        {
+         {
             $ComputerName = Read-Host -Prompt "Enter Computer Name."
             $ComputerName = $ComputerName.toupper()
             Try
@@ -115,7 +115,62 @@
                      }          
                  }
              }  
-         }
-     }
+###################### Server Info #####################
+         '3' 
+         {
+                
+$computer = Read-Host "Enter Computer Name"
+Write-Verbose "Checking $Computer"
+            try {
+                # Check to see if $Computer resolves DNS lookup successfuly.
+                $null = [System.Net.DNS]::GetHostEntry($Computer)
+                
+                $ComputerSystemInfo = Get-WmiObject -Class Win32_ComputerSystem -ComputerName $Computer -ErrorAction Stop -Credential $Credential
+                
+                switch ($ComputerSystemInfo.Model) {
+                    
+                # Check for Hyper-V Machine Type
+                    "Virtual Machine" {
+                        $MachineType="VM"
+                        }
 
+                # Check for VMware Machine Type
+                    "VMware Virtual Platform" {
+                        $MachineType="VM"
+                        }
+
+                # Check for Oracle VM Machine Type
+                    "VirtualBox" {
+                        $MachineType="VM"
+                        }
+
+                # Check for Xen
+                    "HVM domU" {
+                        $MachineType="VM"
+                        }
+
+                # Check for KVM
+                # I need the values for the Model for which to check.
+
+                # Otherwise it is a physical Box
+                    default {
+                        $MachineType="Physical"
+                        }
+                    }
+                
+                # Building MachineTypeInfo Object
+                $MachineTypeInfo = New-Object -TypeName PSObject -Property ([ordered]@{
+                    ComputerName=$ComputerSystemInfo.PSComputername
+                    Type=$MachineType
+                    Manufacturer=$ComputerSystemInfo.Manufacturer
+                    Model=$ComputerSystemInfo.Model
+                    })
+                $MachineTypeInfo
+                }
+            catch [Exception] {
+                Write-Output "$Computer`: $($_.Exception.Message)"
+                }
+ }
+    }
+}
 until ($selection -eq 'q')
